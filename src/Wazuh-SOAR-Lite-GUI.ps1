@@ -130,6 +130,53 @@ function Start-DLPPlaybook {
         -Arguments @("-FilePath", $filePath, "-RuleId", $ruleId, "-RootPath", $currentRoot)
 }
 
+
+function Start-FolderScanPlaybook {
+    $currentRoot = $txtRootPath.Text.Trim()
+    Initialize-SOARFolders -Path $currentRoot
+
+    $folderPath = $txtScanFolder.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($folderPath)) {
+        $folderPath = "C:\SensitiveData\Scan"
+    }
+
+    $ruleId = $txtFolderRule.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($ruleId)) {
+        $ruleId = "100103"
+    }
+
+    $arguments = @("-FolderPath", $folderPath, "-RuleId", $ruleId, "-RootPath", $currentRoot)
+
+    if ($chkScanRecurse.Checked) {
+        $arguments += "-Recurse"
+    }
+
+    if ($chkQuarantineMatches.Checked) {
+        $arguments += "-QuarantineMatches"
+    }
+
+    Invoke-PlaybookFile `
+        -FilePath (Join-Path $PlaybookRoot "Invoke-FolderScanPlaybook.ps1") `
+        -Arguments $arguments
+}
+
+function Browse-ScanFolder {
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = "Select a folder for the SOAR folder scan playbook"
+    $dialog.ShowNewFolderButton = $true
+
+    if (-not [string]::IsNullOrWhiteSpace($txtScanFolder.Text)) {
+        if (Test-Path $txtScanFolder.Text) {
+            $dialog.SelectedPath = $txtScanFolder.Text
+        }
+    }
+
+    if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $txtScanFolder.Text = $dialog.SelectedPath
+        Write-OutputBox "Selected scan folder: $($dialog.SelectedPath)"
+    }
+}
+
 function Start-YARAPlaybook {
     $currentRoot = $txtRootPath.Text.Trim()
     Initialize-SOARFolders -Path $currentRoot
@@ -214,6 +261,7 @@ function Test-RepoPaths {
 
     $requiredFiles = @(
         (Join-Path $PlaybookRoot "Invoke-DLPPlaybook.ps1"),
+        (Join-Path $PlaybookRoot "Invoke-FolderScanPlaybook.ps1"),
         (Join-Path $PlaybookRoot "Invoke-YARAPlaybook.ps1"),
         (Join-Path $PlaybookRoot "Invoke-PowerShellTriagePlaybook.ps1"),
         (Join-Path $PlaybookRoot "Invoke-ReconPlaybook.ps1"),
@@ -238,7 +286,7 @@ Initialize-SOARFolders -Path $RootPath
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "Wazuh SOAR-Lite PowerShell Playbook Lab"
-$form.Size = New-Object System.Drawing.Size(920, 760)
+$form.Size = New-Object System.Drawing.Size(920, 890)
 $form.StartPosition = "CenterScreen"
 $form.TopMost = $false
 
@@ -258,7 +306,7 @@ $lblTitle.Location = New-Object System.Drawing.Point(15, 15)
 $form.Controls.Add($lblTitle)
 
 $lblSubtitle = New-Object System.Windows.Forms.Label
-$lblSubtitle.Text = "Lab-safe playbooks for DLP, YARA, suspicious PowerShell, and recon/Nmap alerts."
+$lblSubtitle.Text = "Lab-safe playbooks for DLP, folder scanning, YARA, suspicious PowerShell, and recon/Nmap alerts."
 $lblSubtitle.AutoSize = $true
 $lblSubtitle.Location = New-Object System.Drawing.Point(17, 45)
 $form.Controls.Add($lblSubtitle)
@@ -364,13 +412,80 @@ $btnYara.Size = New-Object System.Drawing.Size(150, 30)
 $btnYara.Add_Click({ Start-YARAPlaybook })
 $grpYara.Controls.Add($btnYara)
 
+
 # ============================================================
-# SECTION 11 - POWERSHELL TRIAGE GROUP
+# SECTION 11 - FOLDER SCAN GROUP
+# ============================================================
+
+$grpFolderScan = New-Object System.Windows.Forms.GroupBox
+$grpFolderScan.Text = "Folder Scan / DLP Discovery Playbook"
+$grpFolderScan.Location = New-Object System.Drawing.Point(20, 270)
+$grpFolderScan.Size = New-Object System.Drawing.Size(860, 125)
+$form.Controls.Add($grpFolderScan)
+
+$lblScanFolder = New-Object System.Windows.Forms.Label
+$lblScanFolder.Text = "Folder Path:"
+$lblScanFolder.AutoSize = $true
+$lblScanFolder.Location = New-Object System.Drawing.Point(15, 30)
+$grpFolderScan.Controls.Add($lblScanFolder)
+
+$txtScanFolder = New-Object System.Windows.Forms.TextBox
+$txtScanFolder.Text = "C:\SensitiveData\Scan"
+$txtScanFolder.Location = New-Object System.Drawing.Point(95, 27)
+$txtScanFolder.Size = New-Object System.Drawing.Size(530, 24)
+$grpFolderScan.Controls.Add($txtScanFolder)
+
+$btnBrowseScanFolder = New-Object System.Windows.Forms.Button
+$btnBrowseScanFolder.Text = "Browse..."
+$btnBrowseScanFolder.Location = New-Object System.Drawing.Point(635, 25)
+$btnBrowseScanFolder.Size = New-Object System.Drawing.Size(90, 28)
+$btnBrowseScanFolder.Add_Click({ Browse-ScanFolder })
+$grpFolderScan.Controls.Add($btnBrowseScanFolder)
+
+$lblFolderRule = New-Object System.Windows.Forms.Label
+$lblFolderRule.Text = "Rule ID:"
+$lblFolderRule.AutoSize = $true
+$lblFolderRule.Location = New-Object System.Drawing.Point(15, 63)
+$grpFolderScan.Controls.Add($lblFolderRule)
+
+$txtFolderRule = New-Object System.Windows.Forms.TextBox
+$txtFolderRule.Text = "100103"
+$txtFolderRule.Location = New-Object System.Drawing.Point(95, 60)
+$txtFolderRule.Size = New-Object System.Drawing.Size(110, 24)
+$grpFolderScan.Controls.Add($txtFolderRule)
+
+$chkScanRecurse = New-Object System.Windows.Forms.CheckBox
+$chkScanRecurse.Text = "Include subfolders"
+$chkScanRecurse.AutoSize = $true
+$chkScanRecurse.Location = New-Object System.Drawing.Point(225, 62)
+$grpFolderScan.Controls.Add($chkScanRecurse)
+
+$chkQuarantineMatches = New-Object System.Windows.Forms.CheckBox
+$chkQuarantineMatches.Text = "Copy matches to quarantine"
+$chkQuarantineMatches.AutoSize = $true
+$chkQuarantineMatches.Location = New-Object System.Drawing.Point(370, 62)
+$grpFolderScan.Controls.Add($chkQuarantineMatches)
+
+$btnFolderScan = New-Object System.Windows.Forms.Button
+$btnFolderScan.Text = "Run Folder Scan"
+$btnFolderScan.Location = New-Object System.Drawing.Point(635, 60)
+$btnFolderScan.Size = New-Object System.Drawing.Size(130, 30)
+$btnFolderScan.Add_Click({ Start-FolderScanPlaybook })
+$grpFolderScan.Controls.Add($btnFolderScan)
+
+$lblFolderScanNote = New-Object System.Windows.Forms.Label
+$lblFolderScanNote.Text = "Creates a case report and CSV results. Default mode is document-only unless quarantine copy is checked."
+$lblFolderScanNote.AutoSize = $true
+$lblFolderScanNote.Location = New-Object System.Drawing.Point(95, 93)
+$grpFolderScan.Controls.Add($lblFolderScanNote)
+
+# ============================================================
+# SECTION 12 - POWERSHELL TRIAGE GROUP
 # ============================================================
 
 $grpPs = New-Object System.Windows.Forms.GroupBox
 $grpPs.Text = "Suspicious PowerShell Triage Playbook"
-$grpPs.Location = New-Object System.Drawing.Point(20, 270)
+$grpPs.Location = New-Object System.Drawing.Point(20, 410)
 $grpPs.Size = New-Object System.Drawing.Size(420, 120)
 $form.Controls.Add($grpPs)
 
@@ -394,12 +509,12 @@ $btnPs.Add_Click({ Start-PowerShellTriagePlaybook })
 $grpPs.Controls.Add($btnPs)
 
 # ============================================================
-# SECTION 12 - RECON GROUP
+# SECTION 13 - RECON GROUP
 # ============================================================
 
 $grpRecon = New-Object System.Windows.Forms.GroupBox
 $grpRecon.Text = "Recon / Nmap Playbook"
-$grpRecon.Location = New-Object System.Drawing.Point(460, 270)
+$grpRecon.Location = New-Object System.Drawing.Point(460, 410)
 $grpRecon.Size = New-Object System.Drawing.Size(420, 120)
 $form.Controls.Add($grpRecon)
 
@@ -441,57 +556,57 @@ $btnRecon.Add_Click({ Start-ReconPlaybook })
 $grpRecon.Controls.Add($btnRecon)
 
 # ============================================================
-# SECTION 13 - UTILITY BUTTONS
+# SECTION 14 - UTILITY BUTTONS
 # ============================================================
 
 $btnCreateFiles = New-Object System.Windows.Forms.Button
 $btnCreateFiles.Text = "Create Lab Test Files"
-$btnCreateFiles.Location = New-Object System.Drawing.Point(20, 405)
+$btnCreateFiles.Location = New-Object System.Drawing.Point(20, 545)
 $btnCreateFiles.Size = New-Object System.Drawing.Size(160, 35)
 $btnCreateFiles.Add_Click({ New-LabFiles })
 $form.Controls.Add($btnCreateFiles)
 
 $btnCases = New-Object System.Windows.Forms.Button
 $btnCases.Text = "Open Cases Folder"
-$btnCases.Location = New-Object System.Drawing.Point(190, 405)
+$btnCases.Location = New-Object System.Drawing.Point(190, 545)
 $btnCases.Size = New-Object System.Drawing.Size(150, 35)
 $btnCases.Add_Click({ Open-CasesFolder })
 $form.Controls.Add($btnCases)
 
 $btnQuarantine = New-Object System.Windows.Forms.Button
 $btnQuarantine.Text = "Open Quarantine Folder"
-$btnQuarantine.Location = New-Object System.Drawing.Point(350, 405)
+$btnQuarantine.Location = New-Object System.Drawing.Point(350, 545)
 $btnQuarantine.Size = New-Object System.Drawing.Size(170, 35)
 $btnQuarantine.Add_Click({ Open-QuarantineFolder })
 $form.Controls.Add($btnQuarantine)
 
 $btnClearOutput = New-Object System.Windows.Forms.Button
 $btnClearOutput.Text = "Clear Output"
-$btnClearOutput.Location = New-Object System.Drawing.Point(530, 405)
+$btnClearOutput.Location = New-Object System.Drawing.Point(530, 545)
 $btnClearOutput.Size = New-Object System.Drawing.Size(120, 35)
 $btnClearOutput.Add_Click({ $txtOutput.Clear() })
 $form.Controls.Add($btnClearOutput)
 
 $btnExit = New-Object System.Windows.Forms.Button
 $btnExit.Text = "Exit"
-$btnExit.Location = New-Object System.Drawing.Point(760, 405)
+$btnExit.Location = New-Object System.Drawing.Point(760, 545)
 $btnExit.Size = New-Object System.Drawing.Size(120, 35)
 $btnExit.Add_Click({ $form.Close() })
 $form.Controls.Add($btnExit)
 
 # ============================================================
-# SECTION 14 - OUTPUT BOX
+# SECTION 15 - OUTPUT BOX
 # ============================================================
 
 $lblOutput = New-Object System.Windows.Forms.Label
 $lblOutput.Text = "Output:"
 $lblOutput.AutoSize = $true
-$lblOutput.Location = New-Object System.Drawing.Point(20, 455)
+$lblOutput.Location = New-Object System.Drawing.Point(20, 595)
 $form.Controls.Add($lblOutput)
 
 $txtOutput = New-Object System.Windows.Forms.TextBox
-$txtOutput.Location = New-Object System.Drawing.Point(20, 480)
-$txtOutput.Size = New-Object System.Drawing.Size(860, 225)
+$txtOutput.Location = New-Object System.Drawing.Point(20, 620)
+$txtOutput.Size = New-Object System.Drawing.Size(860, 215)
 $txtOutput.Multiline = $true
 $txtOutput.ScrollBars = "Vertical"
 $txtOutput.ReadOnly = $true
@@ -499,13 +614,13 @@ $txtOutput.Font = New-Object System.Drawing.Font("Consolas", 9)
 $form.Controls.Add($txtOutput)
 
 # ============================================================
-# SECTION 15 - STARTUP MESSAGE
+# SECTION 16 - STARTUP MESSAGE
 # ============================================================
 
 $form.Add_Shown({
     Write-OutputBox "Wazuh SOAR-Lite GUI started."
     Write-OutputBox "Click 'Check Repo Paths' first if any button fails."
-    Write-OutputBox "Recommended first step: Create Lab Test Files."
+    Write-OutputBox "Recommended first step: Create Lab Test Files, then run Folder Scan or DLP Playbook."
 })
 
 [void]$form.ShowDialog()
