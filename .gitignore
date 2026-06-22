@@ -1,0 +1,13 @@
+# Runtime case data
+Cases/
+Quarantine/
+*.zip
+
+# PowerShell/editor files
+*.ps1xml
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+.DS_Store
