@@ -1,0 +1,29 @@
+[
+  {
+    "rule_id": "100103",
+    "rule_description": "Added sensitive-looking file by filename/content",
+    "agent_name": "WIN10-LAB",
+    "file_path": "C:\\SensitiveData\\Scan\\sample_pii.txt",
+    "playbook": "DLP / Sensitive File"
+  },
+  {
+    "rule_id": "100302",
+    "rule_description": "YARA match detected",
+    "agent_name": "WIN10-LAB",
+    "file_path": "C:\\Wazuh-Test\\evil.txt",
+    "playbook": "YARA Malware Triage"
+  },
+  {
+    "rule_id": "100102",
+    "rule_description": "Custom: PowerShell execution detected",
+    "agent_name": "WIN10-LAB",
+    "playbook": "Suspicious PowerShell Triage"
+  },
+  {
+    "rule_id": "100200",
+    "rule_description": "Lab scan detected from Kali",
+    "agent_name": "WIN10-LAB",
+    "source_ip": "192.168.56.50",
+    "playbook": "Recon / Nmap"
+  }
+]
